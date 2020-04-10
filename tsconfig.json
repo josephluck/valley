@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "target": "es3",
+    "module": "commonjs",
+    "allowJs": false,
+    "moduleResolution": "node",
+    "allowSyntheticDefaultImports": true,
+    "preserveConstEnums": true,
+    "downlevelIteration": true,
+    "declaration": true,
+    "outDir": "lib",
+    "sourceMap": false,
+    "lib": ["es6", "es7"],
+    "noUnusedLocals": true,
+    "strictNullChecks": false,
+    "removeComments": false,
+    "noImplicitAny": false,
+    "esModuleInterop": true
+  },
+  "include": ["src/**/*"]
+}
