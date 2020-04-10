@@ -1,27 +1,6 @@
 import test from "tape";
 import { validate } from "../";
 
-const expectStringMatch = (expected: string) => (_: string, actual: string) =>
-  actual === expected ? void null : `Expected ${actual} to be ${expected}`;
-
-const asyncExpectStringMatch = (expected: string) => async (
-  _: string,
-  actual: string
-) =>
-  new Promise<string>((resolve) =>
-    actual === expected
-      ? resolve(void null)
-      : resolve(`Expected ${actual} to be ${expected}`)
-  );
-
-const expectGreaterThan = (expected: number) => (_: string, actual: number) =>
-  actual > expected
-    ? void null
-    : `Expected ${actual} to be greater than ${expected}`;
-
-const expectDivisibleBy = (div: number) => (_: string, value: number) =>
-  value % div === 0 ? void null : `Expected ${value} to be divisible by ${div}`;
-
 test("Validates simple valid fields", (t) => {
   t.plan(2);
   type IFields = {
@@ -33,7 +12,7 @@ test("Validates simple valid fields", (t) => {
     age: 32,
   };
   const result = validate(fields, {
-    name: expectStringMatch("Bob"),
+    name: rules.stringMatch("Bob"),
     age: (key, value, fields) =>
       value <= 30 ? `${fields.name}'s ${key} should be at least 30` : void null,
   });
@@ -52,9 +31,8 @@ test("Validates simple invalid fields", (t) => {
     age: 28,
   };
   const result = validate(fields, {
-    name: expectStringMatch("Bob"),
-    age: (key, value, fields) =>
-      value <= 30 ? `${fields.name}'s ${key} should be at least 30` : void null,
+    name: rules.stringMatch("Bob"),
+    age: rules.lessThan(30),
   });
   t.equal(typeof result.name, "string", "Name fails");
   t.equal(typeof result.age, "string", "Age fails");
@@ -71,8 +49,8 @@ test("Validates multiple constraints per field", (t) => {
     thirty: 30,
   };
   const result = validate(fields, {
-    twenty: [expectDivisibleBy(10), expectGreaterThan(25)],
-    thirty: [expectDivisibleBy(10), expectGreaterThan(25)],
+    twenty: [rules.divisibleBy(10), rules.greaterThan(25)],
+    thirty: [rules.divisibleBy(10), rules.greaterThan(25)],
   });
   t.equal(typeof result.twenty, "string", "Twenty fails");
   t.equal(result.twenty, "Expected 20 to be greater than 25");
@@ -90,10 +68,12 @@ test("Validates with asynchronous constraints", async (t) => {
     age: 35,
   };
   const result = await validate(fields, {
-    name: asyncExpectStringMatch("Bob"),
-    age: async () => {
+    name: rules.asyncStringMatch("Bob"),
+    age: async (_, value) => {
       try {
-        await awaitResolve();
+        if (value < 30) {
+          throw new Error();
+        }
       } catch (err) {
         return "Fails";
       }
@@ -112,30 +92,62 @@ test("Validates with multiple asynchronous constraints", async (t) => {
     age: 20,
   };
   const result = await validate(fields, {
-    age: [
-      async () => {
-        try {
-          await awaitResolve();
-        } catch (err) {
-          return "First constraint";
-        }
-      },
-      async () => {
-        try {
-          await awaitReject();
-        } catch (err) {
-          return "Second constraint";
-        }
-      },
-    ],
+    age: [rules.asyncGreaterThan(10), rules.asyncLessThan(15)],
   });
   t.equal(typeof result.age, "string", "Age fails");
   t.equal(
     result.age,
-    "Second constraint",
+    "Expected 20 to be less than 15",
     "Age fails with the correct constraint"
   );
 });
 
-const awaitResolve = () => new Promise((resolve) => resolve());
-const awaitReject = () => new Promise((_, reject) => reject());
+const rules = {
+  stringMatch: (expected: string) => (_: string, actual: string) =>
+    actual === expected ? void null : `Expected ${actual} to be ${expected}`,
+
+  asyncStringMatch: (expected: string) => async (_: string, actual: string) => {
+    try {
+      if (actual !== expected) {
+        throw new Error();
+      }
+    } catch (err) {
+      return `Expected ${actual} to be ${expected}`;
+    }
+  },
+
+  lessThan: (expected: number) => (key: string, value: number) =>
+    value <= 30 ? `${key} should be at least ${expected}` : void null,
+
+  greaterThan: (expected: number) => (_: string, actual: number) =>
+    actual > expected
+      ? void null
+      : `Expected ${actual} to be greater than ${expected}`,
+
+  asyncGreaterThan: (expected: number) => async (_: string, actual: number) => {
+    try {
+      if (actual < expected) {
+        throw new Error();
+      }
+    } catch (err) {
+      return Promise.resolve(
+        `Expected ${actual} to be greater than ${expected}`
+      );
+    }
+  },
+
+  asyncLessThan: (expected: number) => async (_: string, actual: number) => {
+    try {
+      if (actual > expected) {
+        throw new Error();
+      }
+    } catch (err) {
+      return Promise.resolve(`Expected ${actual} to be less than ${expected}`);
+    }
+  },
+
+  divisibleBy: (div: number) => (_: string, value: number) =>
+    value % div === 0
+      ? void null
+      : `Expected ${value} to be divisible by ${div}`,
+};
