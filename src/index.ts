@@ -34,7 +34,7 @@ export function makeValidator<Fs extends Fields>(
            * unwrapped with Promise.all later to extract messages.
            */
           if (anyPromise([err])) {
-            return [...err, fn(key, value, fields)];
+            return [...err, fn(value, key, fields)];
           }
           /**
            * Early return if there's already a synchronous validation message.
@@ -45,7 +45,7 @@ export function makeValidator<Fs extends Fields>(
           /**
            * Construct the first message.
            */
-          const e = fn(key, value, fields);
+          const e = fn(value, key, fields);
           return e ? [e] : [];
         }, []),
       };
@@ -100,36 +100,36 @@ export type FieldValue = any;
 
 export type FieldKey = string | number | symbol;
 
-export type Fields = { [key: string]: FieldValue };
+export type Fields = { [fieldKey: string]: FieldValue };
 
 export type FieldValidationResult = string | never;
 
 export type Constraint<
-  K extends FieldKey,
-  V extends FieldValue,
+  Fv extends FieldValue,
+  Fk extends FieldKey,
   Fs extends Fields
-> = (key: K, value: V, fields: Fs) => FieldValidationResult;
+> = (value: Fv, key: Fk, fields: Fs) => FieldValidationResult;
 
 export type Constraints<Fs extends Fields> = {
-  [Key in keyof Fs]:
-    | Constraint<Key, Fs[Key], Fs>
-    | Array<Constraint<Key, Fs[Key], Fs>>;
+  [Fk in keyof Fs]:
+    | Constraint<Fs[Fk], Fk, Fs>
+    | Array<Constraint<Fs[Fk], Fk, Fs>>;
 };
 
 export type AsyncFieldValidationResult = Promise<string> | never;
 
 export type AsyncConstraint<
-  Key extends FieldKey,
   Fv extends FieldValue,
+  Fk extends FieldKey,
   Fs extends Fields
-> = (key: Key, value: Fv, fields: Fs) => AsyncFieldValidationResult;
+> = (value: Fv, key: Fk, fields: Fs) => AsyncFieldValidationResult;
 
 export type AsyncConstraints<Fs extends Fields> = {
-  [Key in keyof Fs]:
-    | AsyncConstraint<Key, Fs[Key], Fs>
-    | Array<AsyncConstraint<Key, Fs[Key], Fs>>;
+  [Fk in keyof Fs]:
+    | AsyncConstraint<Fs[Fk], Fk, Fs>
+    | Array<AsyncConstraint<Fs[Fk], Fk, Fs>>;
 };
 
 export type ValidationResult<Fs extends Fields> = {
-  [Key in keyof Fs]: FieldValidationResult;
+  [Fk in keyof Fs]: FieldValidationResult;
 };

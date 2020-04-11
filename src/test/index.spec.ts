@@ -13,7 +13,7 @@ test("Validates simple valid fields", (t) => {
   };
   const errors = makeValidator({
     name: rules.stringMatch("Bob"),
-    age: (key, value, fields) =>
+    age: (value, key, fields) =>
       value <= 30 ? `${fields.name}'s ${key} should be at least 30` : void null,
   })(fields);
   t.equal(typeof errors.name, "undefined", "Name passes");
@@ -69,7 +69,7 @@ test("Validates with asynchronous constraints", async (t) => {
   };
   const errors = await makeValidator({
     name: rules.asyncStringMatch("Bob"),
-    age: async (_, value) => {
+    age: async (value) => {
       try {
         if (value < 30) {
           throw new Error();
@@ -121,7 +121,7 @@ test("Real life create account example", async (t) => {
    */
   const validate = makeValidator<Fields>({
     email: [
-      async (_, value) => {
+      async (value) => {
         try {
           if (!value.includes(".") || !value.includes("@")) {
             throw new Error("Not a valid email");
@@ -130,7 +130,7 @@ test("Real life create account example", async (t) => {
           return err.message;
         }
       },
-      async (_, value) => {
+      async (value) => {
         try {
           const response = await api.getAccount(value);
           if (response.data) {
@@ -141,7 +141,7 @@ test("Real life create account example", async (t) => {
         }
       },
     ],
-    password: async (_, value) => {
+    password: async (value) => {
       try {
         if (value.length < 5) {
           throw new Error("Password too short");
@@ -150,7 +150,7 @@ test("Real life create account example", async (t) => {
         return err.message;
       }
     },
-    confirmPassword: async (_, value, fields) => {
+    confirmPassword: async (value, _key, fields) => {
       try {
         if (fields.password !== value) {
           throw new Error("Passwords do not match");
@@ -177,10 +177,10 @@ test("Real life create account example", async (t) => {
 });
 
 const rules = {
-  stringMatch: (expected: string) => (_: string, actual: string) =>
+  stringMatch: (expected: string) => (actual: string) =>
     actual === expected ? void null : `Expected ${actual} to be ${expected}`,
 
-  asyncStringMatch: (expected: string) => async (_: string, actual: string) => {
+  asyncStringMatch: (expected: string) => async (actual: string) => {
     try {
       if (actual !== expected) {
         throw new Error();
@@ -190,15 +190,15 @@ const rules = {
     }
   },
 
-  lessThan: (expected: number) => (key: string, value: number) =>
+  lessThan: (expected: number) => (value: number, key: string) =>
     value <= 30 ? `${key} should be at least ${expected}` : void null,
 
-  greaterThan: (expected: number) => (_: string, actual: number) =>
+  greaterThan: (expected: number) => (actual: number) =>
     actual > expected
       ? void null
       : `Expected ${actual} to be greater than ${expected}`,
 
-  asyncGreaterThan: (expected: number) => async (_: string, actual: number) => {
+  asyncGreaterThan: (expected: number) => async (actual: number) => {
     try {
       if (actual < expected) {
         throw new Error();
@@ -210,7 +210,7 @@ const rules = {
     }
   },
 
-  asyncLessThan: (expected: number) => async (_: string, actual: number) => {
+  asyncLessThan: (expected: number) => async (actual: number) => {
     try {
       if (actual > expected) {
         throw new Error();
@@ -220,7 +220,7 @@ const rules = {
     }
   },
 
-  divisibleBy: (div: number) => (_: string, value: number) =>
+  divisibleBy: (div: number) => (value: number) =>
     value % div === 0
       ? void null
       : `Expected ${value} to be divisible by ${div}`,
