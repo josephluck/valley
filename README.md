@@ -35,7 +35,6 @@
 - Takes type-safety seriously, with maximum inference
 - Multiple constraints per-field
 - Asynchronous constraints
-- Functional variant available
 
 # Installation
 
