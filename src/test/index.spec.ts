@@ -39,22 +39,27 @@ test("Validates simple invalid fields", (t) => {
 });
 
 test("Validates multiple constraints per field", (t) => {
-  t.plan(3);
+  t.plan(4);
   type Fields = {
     twenty: number;
     thirty: number;
+    fourty: number;
   };
   const fields: Fields = {
     twenty: 20,
     thirty: 30,
+    fourty: 40,
   };
-  const errors = makeValidator({
+  const validate = makeValidator<Fields>({
     twenty: [rules.divisibleBy(10), rules.greaterThan(25)],
     thirty: [rules.divisibleBy(10), rules.greaterThan(25)],
-  })(fields);
+    fourty: rules.divisibleBy(10),
+  });
+  const errors = validate(fields);
   t.equal(typeof errors.twenty, "string", "Twenty fails");
   t.equal(errors.twenty, "Expected 20 to be greater than 25");
   t.equal(typeof errors.thirty, "undefined", "Thirty passes");
+  t.equal(typeof errors.fourty, "undefined", "Fourty passes");
 });
 
 test("Validates with asynchronous constraints", async (t) => {
@@ -189,6 +194,12 @@ const rules = {
       return `Expected ${actual} to be ${expected}`;
     }
   },
+
+  confirmPassword: (
+    value: string,
+    _key: string,
+    fields: { password: string; [key: string]: any }
+  ) => (value === fields.password ? void null : "Passwords do not match"),
 
   lessThan: (expected: number) => (value: number, key: string) =>
     value <= 30 ? `${key} should be at least ${expected}` : void null,
