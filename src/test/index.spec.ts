@@ -1,5 +1,5 @@
 import test from "tape";
-import { validate } from "../";
+import { makeValidator } from "../";
 
 test("Validates simple valid fields", (t) => {
   t.plan(2);
@@ -11,13 +11,13 @@ test("Validates simple valid fields", (t) => {
     name: "Bob",
     age: 32,
   };
-  const result = validate(fields, {
+  const errors = makeValidator({
     name: rules.stringMatch("Bob"),
     age: (key, value, fields) =>
       value <= 30 ? `${fields.name}'s ${key} should be at least 30` : void null,
-  });
-  t.equal(typeof result.name, "undefined", "Name passes");
-  t.equal(typeof result.age, "undefined", "Age passes");
+  })(fields);
+  t.equal(typeof errors.name, "undefined", "Name passes");
+  t.equal(typeof errors.age, "undefined", "Age passes");
 });
 
 test("Validates simple invalid fields", (t) => {
@@ -30,12 +30,12 @@ test("Validates simple invalid fields", (t) => {
     name: "Sally",
     age: 28,
   };
-  const result = validate(fields, {
+  const errors = makeValidator({
     name: rules.stringMatch("Bob"),
     age: rules.lessThan(30),
-  });
-  t.equal(typeof result.name, "string", "Name fails");
-  t.equal(typeof result.age, "string", "Age fails");
+  })(fields);
+  t.equal(typeof errors.name, "string", "Name fails");
+  t.equal(typeof errors.age, "string", "Age fails");
 });
 
 test("Validates multiple constraints per field", (t) => {
@@ -48,13 +48,13 @@ test("Validates multiple constraints per field", (t) => {
     twenty: 20,
     thirty: 30,
   };
-  const result = validate(fields, {
+  const errors = makeValidator({
     twenty: [rules.divisibleBy(10), rules.greaterThan(25)],
     thirty: [rules.divisibleBy(10), rules.greaterThan(25)],
-  });
-  t.equal(typeof result.twenty, "string", "Twenty fails");
-  t.equal(result.twenty, "Expected 20 to be greater than 25");
-  t.equal(typeof result.thirty, "undefined", "Thirty passes");
+  })(fields);
+  t.equal(typeof errors.twenty, "string", "Twenty fails");
+  t.equal(errors.twenty, "Expected 20 to be greater than 25");
+  t.equal(typeof errors.thirty, "undefined", "Thirty passes");
 });
 
 test("Validates with asynchronous constraints", async (t) => {
@@ -67,7 +67,7 @@ test("Validates with asynchronous constraints", async (t) => {
     name: "Sam",
     age: 35,
   };
-  const result = await validate(fields, {
+  const errors = await makeValidator({
     name: rules.asyncStringMatch("Bob"),
     age: async (_, value) => {
       try {
@@ -78,9 +78,9 @@ test("Validates with asynchronous constraints", async (t) => {
         return "Fails";
       }
     },
-  });
-  t.equal(typeof result.name, "string", "Name fails");
-  t.equal(typeof result.age, "undefined", "Age passes");
+  })(fields);
+  t.equal(typeof errors.name, "string", "Name fails");
+  t.equal(typeof errors.age, "undefined", "Age passes");
 });
 
 test("Validates with multiple asynchronous constraints", async (t) => {
@@ -91,14 +91,88 @@ test("Validates with multiple asynchronous constraints", async (t) => {
   const fields: Fields = {
     age: 20,
   };
-  const result = await validate(fields, {
+  const errors = await makeValidator({
     age: [rules.asyncGreaterThan(10), rules.asyncLessThan(15)],
-  });
-  t.equal(typeof result.age, "string", "Age fails");
+  })(fields);
+  t.equal(typeof errors.age, "string", "Age fails");
   t.equal(
-    result.age,
+    errors.age,
     "Expected 20 to be less than 15",
     "Age fails with the correct constraint"
+  );
+});
+
+test("Real life create account example", async (t) => {
+  t.plan(5);
+  type Fields = {
+    email: string;
+    password: string;
+    confirmPassword: string;
+  };
+  const fields: Fields = {
+    email: "bob@acme.co",
+    password: "bobsdabest",
+    confirmPassword: "bobadaworst",
+  };
+  /**
+   * Usually these constraints would all be packaged up in a separate module for
+   * reusability, and imported where needed. Otherwise it looks a bit gnarly
+   * in-line...
+   */
+  const validate = makeValidator<Fields>({
+    email: [
+      async (_, value) => {
+        try {
+          if (!value.includes(".") || !value.includes("@")) {
+            throw new Error("Not a valid email");
+          }
+        } catch (err) {
+          return err.message;
+        }
+      },
+      async (_, value) => {
+        try {
+          const response = await api.getAccount(value);
+          if (response.data) {
+            throw new Error("Account already exists");
+          }
+        } catch (err) {
+          return err.message;
+        }
+      },
+    ],
+    password: async (_, value) => {
+      try {
+        if (value.length < 5) {
+          throw new Error("Password too short");
+        }
+      } catch (err) {
+        return err.message;
+      }
+    },
+    confirmPassword: async (_, value, fields) => {
+      try {
+        if (fields.password !== value) {
+          throw new Error("Passwords do not match");
+        }
+      } catch (err) {
+        return err.message;
+      }
+    },
+  });
+  const errors = await validate(fields);
+  t.equal(typeof errors.email, "string", "Email fails");
+  t.equal(typeof errors.password, "undefined", "Password passes");
+  t.equal(typeof errors.confirmPassword, "string", "Confirm password fails");
+  t.equal(
+    errors.email,
+    "Account already exists",
+    "Email fails with correct constraint"
+  );
+  t.equal(
+    errors.confirmPassword,
+    "Passwords do not match",
+    "Confirm password fails with correct constraint"
   );
 });
 
@@ -150,4 +224,21 @@ const rules = {
     value % div === 0
       ? void null
       : `Expected ${value} to be divisible by ${div}`,
+};
+
+const api = {
+  getAccount: async (email: string) => {
+    if (email === "bob@acme.co") {
+      return {
+        error: false,
+        status: 200,
+        data: {
+          name: "Bob",
+          email,
+          age: 30,
+        },
+      };
+    }
+    return { error: true, status: 404, message: "Not Found" };
+  },
 };
