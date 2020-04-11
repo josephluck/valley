@@ -1,7 +1,8 @@
 {
   "name": "@josephluck/valley",
-  "version": "1.1.4",
+  "version": "0.0.0",
   "description": "Functional validation",
+  "private": false,
   "main": "./lib/index.js",
   "files": [
     "src/",
@@ -15,7 +16,7 @@
   "scripts": {
     "test": "ts-node node_modules/.bin/tape ./src/test/*.spec.ts | tap-spec",
     "build": "rm -rf ./lib && mkdir lib && tsc",
-    "deploy": "npm run build && npm publish"
+    "deploy": "npm run build && npm publish --access public"
   },
   "dependencies": {
     "fp-ts": "^2.5.3"
