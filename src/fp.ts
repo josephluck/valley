@@ -48,7 +48,10 @@ export function makeValidator<Fs extends Fields>(
             let asyncResults: ValidationResult<Fs> = {} as any;
             for (let i = 0, x = resultsArr.length; i < x; i++) {
               const fieldKey: keyof Fs = fieldKeys[i];
-              const constraintResultsForField = resultsArr[i].map((fn) => fn());
+              // Converts any Eithers to TaskEithers and run them
+              const constraintResultsForField = resultsArr[i].map((fn) =>
+                isTaskEither(fn) ? fn() : fn
+              );
               const unpackedConstraintMessages = await Promise.all(
                 constraintResultsForField
               );
@@ -125,5 +128,5 @@ export type AsyncConstraintFn<Fv, Fk, Fs> = (
 export type AsyncFieldConstraintsMap<Fs extends Fields> = {
   [Fk in keyof Fs]:
     | AsyncConstraintFn<Fs[Fk], Fk, Fs>
-    | Array<AsyncConstraintFn<Fs[Fk], Fk, Fs>>;
+    | Array<AsyncConstraintFn<Fs[Fk], Fk, Fs> | ConstraintFn<Fs[Fk], Fk, Fs>>;
 };

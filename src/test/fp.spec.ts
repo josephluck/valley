@@ -101,6 +101,37 @@ test("FP - Validates with TaskEither", async (t) => {
   t.pass("Pipeline finished");
 });
 
+test("FP - Validates a variety of Either and TaskEither constraints", async (t) => {
+  t.plan(3);
+  type Fields = {
+    name: string;
+    age: number;
+  };
+  const validate = makeValidator<Fields>({
+    name: [isNumber, asyncIsEqualTo("Bob")],
+    age: [asyncIsGreaterThan(40), isString],
+  });
+  const pipeline = pipe(
+    validate({ name: "Bob", age: 50 }),
+    TE.mapLeft((errors) => {
+      t.pass("Validation fails");
+      t.deepEqual(
+        errors,
+        {
+          name: "Expected a number",
+          age: "Expected a string",
+        },
+        "Correct constraints returned"
+      );
+    }),
+    TE.map(() => {
+      t.fail("Expected validation to fail");
+    })
+  );
+  await pipeline();
+  t.pass("Pipeline finished");
+});
+
 const isOfType = (type: string) => <T>(value: T): E.Either<string, T> =>
   typeof value === type ? E.right(value) : E.left(`Expected a ${type}`);
 
