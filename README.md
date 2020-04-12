@@ -35,6 +35,7 @@
 - Takes type-safety seriously, with maximum inference
 - Multiple constraints per-field
 - Asynchronous constraints
+- Fp-ts compatible version available
 
 # Installation
 
@@ -52,7 +53,7 @@ npm i --save @josephluck/valley
 
 # Usage
 
-### The most basic example is a validator with synchronous constraints:
+The most basic example is a validator with synchronous constraints:
 
 ```typescript
 import { makeValidator } from "@josephluck/valley";
@@ -106,7 +107,7 @@ console.log(errors);
 // { twenty: "Expected 20 to be greater than 25", thirty: undefined, fourty: undefined }
 ```
 
-### Constraints can access other field values:
+Constraints can access other field values:
 
 ```typescript
 const rules = {
@@ -135,7 +136,7 @@ console.log(errors);
 // { email: undefined, password: undefined, confirmPassword: "Passwords do not match" }
 ```
 
-### Constraints can be asynchronous:
+Constraints can be asynchronous:
 
 ```typescript
 type Fields = {
