@@ -1,40 +1,42 @@
 export function makeValidator<Fs extends Fields>(
-  constraints: Constraints<Fs>
+  constraints: FieldConstraintsMap<Fs>
 ): (fields: Fs) => ValidationResult<Fs>;
 
 export function makeValidator<Fs extends Fields>(
-  constraints: AsyncConstraints<Fs>
+  constraints: AsyncFieldConstraintsMap<Fs>
 ): (fields: Fs) => Promise<ValidationResult<Fs>>;
 
 export function makeValidator<Fs extends Fields>(
-  constraints: Constraints<Fs> | AsyncConstraints<Fs>
+  constraints: FieldConstraintsMap<Fs> | AsyncFieldConstraintsMap<Fs>
 ) {
   return function validate(
     fields: Fs
   ): ValidationResult<Fs> | Promise<ValidationResult<Fs>> {
+    type Fk = keyof Fs;
     const fieldKeys = Object.keys(constraints);
-    const results = fieldKeys.reduce((acc, key: keyof Fs) => {
-      const constraint = constraints[key];
-      const value = fields[key];
+
+    const results = fieldKeys.reduce((acc, fieldKey: Fk) => {
+      const fieldValue = fields[fieldKey];
+      const fieldConstraint = constraints[fieldKey];
 
       /**
        * Constraints can either be an array of constraint functions or a single
        * constraint function. To make the following code easier, wrap single
        * constraints up in to an array.
        */
-      const constraintsToRun = (typeof constraint === "function"
-        ? [constraint]
-        : constraint) as Constraint<any, any, any>[];
+      const fieldConstraints = (typeof fieldConstraint === "function"
+        ? [fieldConstraint]
+        : fieldConstraint) as Constraint<any, any, any>[];
 
       return {
         ...acc,
-        [key]: constraintsToRun.reduce((err, fn) => {
+        [fieldKey]: fieldConstraints.reduce((err, fn) => {
           /**
            * Wrap up all async constraint promises in an array that can be
            * unwrapped with Promise.all later to extract messages.
            */
           if (anyPromise([err])) {
-            return [...err, fn(value, key, fields)];
+            return [...err, fn(fieldValue, fieldKey, fields)];
           }
           /**
            * Early return if there's already a synchronous validation message.
@@ -45,7 +47,7 @@ export function makeValidator<Fs extends Fields>(
           /**
            * Construct the first message.
            */
-          const e = fn(value, key, fields);
+          const e = fn(fieldValue, fieldKey, fields);
           return e ? [e] : [];
         }, []),
       };
@@ -110,7 +112,7 @@ export type Constraint<
   Fs extends Fields
 > = (value: Fv, key: Fk, fields: Fs) => FieldValidationResult;
 
-export type Constraints<Fs extends Fields> = {
+export type FieldConstraintsMap<Fs extends Fields> = {
   [Fk in keyof Fs]:
     | Constraint<Fs[Fk], Fk, Fs>
     | Array<Constraint<Fs[Fk], Fk, Fs>>;
@@ -124,7 +126,7 @@ export type AsyncConstraint<
   Fs extends Fields
 > = (value: Fv, key: Fk, fields: Fs) => AsyncFieldValidationResult;
 
-export type AsyncConstraints<Fs extends Fields> = {
+export type AsyncFieldConstraintsMap<Fs extends Fields> = {
   [Fk in keyof Fs]:
     | AsyncConstraint<Fs[Fk], Fk, Fs>
     | Array<AsyncConstraint<Fs[Fk], Fk, Fs>>;

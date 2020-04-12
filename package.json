@@ -18,14 +18,14 @@
     "build": "rm -rf ./lib && mkdir lib && tsc",
     "deploy": "npm run build && npm publish --access public"
   },
-  "dependencies": {
-    "fp-ts": "^2.5.3"
-  },
   "devDependencies": {
     "@types/tape": "^4.2.34",
     "tap-spec": "^5.0.0",
     "tape": "^4.13.2",
     "ts-node": "^8.8.2",
     "typescript": "^3.8.3"
+  },
+  "peerDependencies": {
+    "fp-ts": "^2.5.3"
   }
 }
