@@ -246,7 +246,7 @@ pipe(
 );
 ```
 
-If any constraint returns a `TaskEither`, the entire constraint function returns a `TaskEither`:
+If any constraint returns a `TaskEither`, the validate function returns a `TaskEither`:
 
 ```typescript
 import * as E from "fp-ts/lib/Either";
