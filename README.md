@@ -28,6 +28,7 @@
 - [Features](#features)
 - [Installation](#installation)
 - [Usage](#usage)
+- [Functional usage](#functional-usage)
 
 # Features
 
@@ -175,4 +176,153 @@ const errors = await validate({
 });
 console.log(errors);
 // { email: "Account already exists }
+```
+
+# Functional usage
+
+Valley is compatible with fp-ts using the fp variant of `makeValidator`. This is useful if you're working with `fp-ts`'s `Either` or `TaskEither` types with `pipe` to validate data before operating on it.
+
+Constraints have to return `Either<string, any>` or `TaskEither<string, any>` depending on whether your constraint is synchronous or asynchronous. If all constraints return `Either`s, the validation will return a `TaskEither<Record<keyof Fields, string>, Fields>`. If any constraint return a `TaskEither`, the validation will return a `TaskEither<Record<keyof Fields, string>, Fields>`.
+
+Here's an example of synchronous validation using `Either`s:
+
+```typescript
+import * as E from "fp-ts/lib/Either";
+import { pipe } from "fp-ts/lib/pipeable";
+import { makeValidator } from "@josephluck/valley/fp";
+
+const isOfType = (type: string) => <T>(value: T): E.Either<string, T> =>
+  typeof value === type ? E.right(value) : E.left(`Expected a ${type}`);
+
+const isString = isOfType("string");
+
+const isNumber = isOfType("number");
+
+const isEqualTo = <T>(expected: T) => <V extends T>(
+  value: V
+): E.Either<string, V> =>
+  value === expected
+    ? E.right(value)
+    : E.left(`Expected ${value} to equal ${expected}`);
+
+const isGreaterThan = <T>(expected: T) => <V extends T>(
+  value: V
+): E.Either<string, V> =>
+  value > expected
+    ? E.right(value)
+    : E.left(`Expected ${value} to be greater than ${expected}`);
+
+type Fields = {
+  name: string;
+  age: number;
+};
+
+const validate = makeValidator<Fields>({
+  name: [isString, isEqualTo("Bob")],
+  age: [isNumber, isGreaterThan(40)],
+});
+
+pipe(
+  validate({
+    name: "Bob",
+    age: 32,
+  }),
+  E.fold(
+    (errors) => {
+      /**
+       * If any constraint fails
+       */
+      console.log(errors);
+      // { age: "Expected 32 to be greater than 40", name: undefined }
+    },
+    (fields) => {
+      /**
+       * If all constraints pass
+       */
+      console.log(fields);
+      // { name: "Bob", age: 32 }
+    }
+  )
+);
+```
+
+If any constraint returns a `TaskEither`, the entire constraint function returns a `TaskEither`:
+
+```typescript
+import * as E from "fp-ts/lib/Either";
+import * as TE from "fp-ts/lib/TaskEither";
+import { pipe } from "fp-ts/lib/pipeable";
+import { makeValidator } from "@josephluck/valley/fp";
+
+const isOfType = (type: string) => <T>(value: T): E.Either<string, T> =>
+  typeof value === type ? E.right(value) : E.left(`Expected a ${type}`);
+
+const isString = isOfType("string");
+
+const isNumber = isOfType("number");
+
+const isEqualTo = <T>(expected: T) => <V extends T>(
+  value: V
+): E.Either<string, V> =>
+  value === expected
+    ? E.right(value)
+    : E.left(`Expected ${value} to equal ${expected}`);
+
+const isGreaterThan = <T>(expected: T) => <V extends T>(
+  value: V
+): E.Either<string, V> =>
+  value > expected
+    ? E.right(value)
+    : E.left(`Expected ${value} to be greater than ${expected}`);
+
+const asyncIsEqualTo = <T>(expected: T) => (value: T) =>
+  TE.tryCatch(
+    async () => {
+      if (value !== expected) {
+        throw new Error(`Expected ${value} to equal ${expected}`);
+      }
+      return value;
+    },
+    (err: Error) => err.message
+  );
+
+const asyncIsGreaterThan = (expected: number) => (value: number) =>
+  TE.tryCatch(
+    async () => {
+      if (value < expected) {
+        throw new Error(`Expected ${value} to be greater than ${expected}`);
+      }
+      return value;
+    },
+    (err: Error) => err.message
+  );
+
+type Fields = {
+  name: string;
+  age: number;
+};
+
+const validate = makeValidator<Fields>({
+  name: [isNumber, asyncIsEqualTo("Bob")],
+  age: [asyncIsGreaterThan(40), isString],
+});
+
+const pipeline = pipe(
+  validate({ name: "Bob", age: 50 }),
+  TE.mapLeft((errors) => {
+    /**
+     * If any constraint fails
+     */
+    console.log(errors);
+    // { name: "Expected a number", age: "Expected a string" }
+  }),
+  TE.map((fields) => {
+    /**
+     * If all constraints pass
+     */
+    console.log(fields);
+    // { name: "Bob", age: 50 }
+  })
+);
+await pipeline();
 ```
