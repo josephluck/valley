@@ -76,24 +76,21 @@ export function makeValidator<Fs extends Fields>(
   };
 }
 
-const anyPromise = (values: any[]): boolean =>
-  Boolean(
-    values.find(
-      (result) =>
-        typeof result === "object" && typeof result.then === "function"
-    )
-  );
+const isPromise = (value: any): boolean =>
+  typeof value === "object" && typeof value.then === "function";
+
+const anyPromise = (values: any[]): boolean => Boolean(values.find(isPromise));
 
 const flatten = <T>(values: T[][]): T[] =>
   values.reduce((acc, curr) => [...acc, ...curr], []);
 
+const promisify = (value: any) =>
+  isPromise(value) ? Promise.resolve(value) : value;
+
 /**
  * Takes an array of values and makes each value a Promise if it isn't already
  */
-const promisifyArr = (arr: any[]): Promise<any>[] =>
-  arr.map((result) =>
-    !anyPromise([result]) ? Promise.resolve(result) : result
-  );
+const promisifyArr = (arr: any[]): Promise<any>[] => arr.map(promisify);
 
 export type FieldValue = any;
 
