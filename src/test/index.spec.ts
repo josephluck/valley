@@ -107,6 +107,36 @@ test("Validates with multiple asynchronous constraints", async (t) => {
   );
 });
 
+test("Validates with a mix of synchronous and asynchronous constraints", async (t) => {
+  t.plan(3);
+  type Fields = {
+    age: number;
+  };
+  const validate = makeValidator<Fields>({
+    age: [rules.greaterThan(10), rules.asyncLessThan(15)],
+  });
+  const first = await validate({
+    age: 20,
+  });
+  t.deepEqual(
+    first,
+    { age: "Expected 20 to be less than 15" },
+    "First set of fields fail with correct constraints"
+  );
+  const second = await validate({
+    age: 5,
+  });
+  t.deepEqual(
+    second,
+    { age: "Expected 5 to be greater than 10" },
+    "Second set of fields fail with correct constraints"
+  );
+  const third = await validate({
+    age: 12,
+  });
+  t.deepEqual(third, { age: undefined }, "Third set of fields pass");
+});
+
 test("Real life create account example", async (t) => {
   t.plan(5);
   type Fields = {

@@ -30,26 +30,10 @@ export function makeValidator<Fs extends Fields>(
 
       return {
         ...acc,
-        [fieldKey]: fieldConstraints.reduce((err, fn) => {
-          /**
-           * Wrap up all async constraint promises in an array that can be
-           * unwrapped with Promise.all later to extract messages.
-           */
-          if (anyPromise([err])) {
-            return [...err, fn(fieldValue, fieldKey, fields)];
-          }
-          /**
-           * Early return if there's already a synchronous validation message.
-           */
-          if (err.length > 0) {
-            return err;
-          }
-          /**
-           * Construct the first message.
-           */
-          const e = fn(fieldValue, fieldKey, fields);
-          return e ? [e] : [];
-        }, []),
+        [fieldKey]: fieldConstraints.reduce(
+          (err, fn) => [...err, fn(fieldValue, fieldKey, fields)],
+          []
+        ),
       };
     }, fields);
 
@@ -69,7 +53,7 @@ export function makeValidator<Fs extends Fields>(
           const fieldKey: keyof Fs = fieldKeys[i];
           const constraintResultsForField = resultsArr[i];
           const unpackedConstraintMessages = await Promise.all<string>(
-            constraintResultsForField
+            promisifyArr(constraintResultsForField)
           );
           const message = unpackedConstraintMessages.find(Boolean);
           asyncResults[fieldKey] = message;
@@ -93,10 +77,23 @@ export function makeValidator<Fs extends Fields>(
 }
 
 const anyPromise = (values: any[]): boolean =>
-  Boolean(values.find((result) => typeof result !== "string"));
+  Boolean(
+    values.find(
+      (result) =>
+        typeof result === "object" && typeof result.then === "function"
+    )
+  );
 
 const flatten = <T>(values: T[][]): T[] =>
   values.reduce((acc, curr) => [...acc, ...curr], []);
+
+/**
+ * Takes an array of values and makes each value a Promise if it isn't already
+ */
+const promisifyArr = (arr: any[]): Promise<any>[] =>
+  arr.map((result) =>
+    !anyPromise([result]) ? Promise.resolve(result) : result
+  );
 
 export type FieldValue = any;
 
@@ -129,7 +126,7 @@ export type AsyncConstraint<
 export type AsyncFieldConstraintsMap<Fs extends Fields> = {
   [Fk in keyof Fs]:
     | AsyncConstraint<Fs[Fk], Fk, Fs>
-    | Array<AsyncConstraint<Fs[Fk], Fk, Fs>>;
+    | Array<AsyncConstraint<Fs[Fk], Fk, Fs> | Constraint<Fs[Fk], Fk, Fs>>;
 };
 
 export type ValidationResult<Fs extends Fields> = {
