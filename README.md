@@ -180,7 +180,7 @@ console.log(errors);
 
 # Functional usage
 
-Valley is compatible with fp-ts using the fp variant of `makeValidator`. This is useful if you're working with `fp-ts`'s `Either` or `TaskEither` types with `pipe` to validate data before operating on it.
+Valley is compatible with fp-ts using the fp variant of `makeValidator`. This is useful if you're working with `fp-ts`'s `Either` or `TaskEither` types with `pipe` to validate data before operating on it. If you want something more robust (with a higher learning curve), I'd recommend [io-ts](https://github.com/gcanti/io-ts).
 
 Constraints have to return `Either<string, V>` or `TaskEither<string, V>` depending on whether your constraint is synchronous or asynchronous (where `T` represents the field's value, which should be returned by the constraint function if the field passes validation). 
 
