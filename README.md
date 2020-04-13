@@ -182,7 +182,9 @@ console.log(errors);
 
 Valley is compatible with fp-ts using the fp variant of `makeValidator`. This is useful if you're working with `fp-ts`'s `Either` or `TaskEither` types with `pipe` to validate data before operating on it.
 
-Constraints have to return `Either<string, any>` or `TaskEither<string, any>` depending on whether your constraint is synchronous or asynchronous. If all constraints return `Either`s, the validation will return a `TaskEither<Record<keyof Fields, string>, Fields>`. If any constraint return a `TaskEither`, the validation will return a `TaskEither<Record<keyof Fields, string>, Fields>`.
+Constraints have to return `Either<string, V>` or `TaskEither<string, V>` depending on whether your constraint is synchronous or asynchronous (where `T` represents the field's value, which should be returned by the constraint function if the field passes validation). 
+
+If all constraints return `Either`s, the validation function will return `Either<Record<keyof Fields, string>, Fields>`. If any constraint return a `TaskEither`, the validation function will return `TaskEither<Record<keyof Fields, string>, Fields>`. The left side of the either is the failed case containing validation messages, and the right side is the fields which are passed through if all constraints for all fields pass.
 
 Here's an example of synchronous validation using `Either`s:
 
