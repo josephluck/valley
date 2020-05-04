@@ -1,6 +1,6 @@
 {
   "name": "@josephluck/valley",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "Functional validation",
   "private": false,
   "main": "./lib/index.js",
@@ -27,5 +27,8 @@
   },
   "peerDependencies": {
     "fp-ts": "^2.5.3"
+  },
+  "dependencies": {
+    "fp-ts": "^2.5.4"
   }
 }
